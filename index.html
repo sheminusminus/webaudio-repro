@@ -42,7 +42,9 @@
         // absn.onended = () => {};
 
         const _timeout = fn => {
-          setTimeout(fn, Math.floor(Math.random() * 20));
+          setTimeout(
+            () => requestAnimationFrame(fn),
+            Math.floor(Math.random() * 20));
         };
         _timeout(() => {
           _timeout(() => {
