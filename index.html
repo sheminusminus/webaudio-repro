@@ -4,6 +4,126 @@
   </head>
   <body>
     <script>
+      const symbols = {
+        windowSymbol: Symbol(),
+        startTimeSymbol: Symbol(),
+        timeoutSymbol: Symbol(),
+        intervalSymbol: Symbol(),
+      };
+      let rafCbs = [];
+      let timeouts = [];
+      let intervals = [];
+      let rafIndex = 0;
+      const localCbs = [];
+      const _cacheLocalCbs = cbs => {
+        for (let i = 0; i < cbs.length; i++) {
+          localCbs[i] = cbs[i];
+        }
+        for (let i = cbs.length; i < localCbs.length; i++) {
+          localCbs[i] = null;
+        }
+      };
+      const _clearLocalCbs = () => {
+        for (let i = 0; i < localCbs.length; i++) {
+          localCbs[i] = null;
+        }
+      };
+      function tickAnimationFrame() {
+        /* if (rafCbs.length > 0) {
+          _cacheLocalCbs(rafCbs);
+
+          tickAnimationFrame.window = this;
+
+          const performanceNow = performance.now();
+
+          // hidden rafs
+          for (let i = 0; i < localCbs.length; i++) {
+            const rafCb = localCbs[i];
+            if (rafCb && rafCb[symbols.windowSymbol].document.hidden) {
+              rafCb(performanceNow);
+
+              const index = rafCbs.indexOf(rafCb); // could have changed due to sorting
+              if (index !== -1) {
+                rafCbs[index] = null;
+              }
+            }
+          }
+          // visible rafs
+          for (let i = 0; i < localCbs.length; i++) {
+            const rafCb = localCbs[i];
+            if (rafCb && !rafCb[symbols.windowSymbol].document.hidden) {
+              rafCb(performanceNow);
+
+              const index = rafCbs.indexOf(rafCb); // could have changed due to sorting
+              if (index !== -1) {
+                rafCbs[index] = null;
+              }
+            }
+          }
+
+          tickAnimationFrame.window = null;
+        } */
+
+        if (timeouts.length > 0) {
+          // _cacheLocalCbs(timeouts);
+          const dateNow = Date.now();
+
+          for (let i = 0; i < timeouts.length; i++) {
+            const timeout = timeouts[i];
+            if (timeout) {
+              const endTime = timeout[symbols.startTimeSymbol] + timeout[symbols.timeoutSymbol];
+              if (dateNow >= endTime) {
+                timeout();
+
+                timeouts[i] = null;
+              }
+            }
+          }
+        }
+
+        /* if (intervals.length > 0) {
+          _cacheLocalCbs(intervals);
+          const dateNow = Date.now();
+
+          for (let i = 0; i < localCbs.length; i++) {
+            const interval = localCbs[i];
+            if (interval) {
+              const endTime = interval[symbols.startTimeSymbol] + interval[symbols.intervalSymbol];
+              if (dateNow >= endTime) {
+                interval();
+
+                interval[symbols.startTimeSymbol] = dateNow;
+              }
+            }
+          }
+        } */
+        
+        // _clearLocalCbs(); // release garbage
+
+        requestAnimationFrame(tickAnimationFrame);
+      }
+      requestAnimationFrame(tickAnimationFrame);
+
+      const _findFreeSlot = a => {
+        let i;
+        for (i = 0; i < a.length; i++) {
+          if (a[i] === null) {
+            break;
+          }
+        }
+        return i;
+      };
+      const fakeSetTimeout = (fn, timeout = 0, args = []) => {
+        fn = fn.bind.apply(fn, [window].concat(args));
+        fn[symbols.windowSymbol] = window;
+        fn[symbols.startTimeSymbol] = Date.now();
+        fn[symbols.timeoutSymbol] = timeout;
+        const id = ++rafIndex;
+        fn[symbols.idSymbol] = id;
+        timeouts[_findFreeSlot(timeouts)] = fn;
+        return id;
+      };
+
       const ctx = THREE.AudioContext.getContext();
       const buffers = [];
       let numLoads = 0;
@@ -42,7 +162,7 @@
         // absn.onended = () => {};
 
         const _timeout = fn => {
-          setTimeout(fn, Math.floor(Math.random() * 20));
+          fakeSetTimeout(fn, Math.floor(Math.random() * 20));
         };
         _timeout(() => {
           _timeout(() => {
@@ -59,6 +179,7 @@
           _recurse();
         });
       };
+
 
       /* setInterval(() => {
         while (Math.random() >= 0.000001) {}
